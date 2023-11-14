@@ -1,5 +1,6 @@
 package cleyton_orocha.com.github.tdd_library.controller;
 
+import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.BDDMockito;
@@ -19,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cleyton_orocha.com.github.tdd_library.DTO.BookDTO;
 import cleyton_orocha.com.github.tdd_library.entity.Book;
+import cleyton_orocha.com.github.tdd_library.exception.BusinessException;
 import cleyton_orocha.com.github.tdd_library.service.BookService;
 
 @WebMvcTest
@@ -65,6 +67,40 @@ public class BookControllerTest {
                 .andExpect(MockMvcResultMatchers.jsonPath("title").value(dto.getTitle()))
                 .andExpect(MockMvcResultMatchers.jsonPath("author").value(dto.getAuthor()))
                 .andExpect(MockMvcResultMatchers.jsonPath("isbn").value(dto.getIsbn()));
+    }
+
+    @Test
+    @DisplayName("Deve lançar um erro de validaçao quando nao houver dados suficientes para a criaçao do livro")
+    public void createInvalidBookTest() throws Exception {
+        String json = new ObjectMapper().writeValueAsString(new BookDTO());
+
+        MockHttpServletRequestBuilder request = MockMvcRequestBuilders.post(BOOK_API)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(json);
+
+        mvc.perform(request)
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andExpect(MockMvcResultMatchers.jsonPath("errors", Matchers.hasSize(3)));
+    }
+
+    @Test
+    @DisplayName("Deve lançar um erro ao tentar cadastrar um livro com isbn já utilizado por outro")
+    public void createBookWithDuplicatedIsbn() throws Exception {
+        BookDTO bookDTO = createBookDto();
+        String json = new ObjectMapper().writeValueAsString(bookDTO);
+        String errorMessage = "Isbn já cadastrado.";
+        BDDMockito.given(bookService.save(Mockito.any(Book.class)))
+                .willThrow(new BusinessException(errorMessage));
+
+        MockHttpServletRequestBuilder request = MockMvcRequestBuilders.post(BOOK_API)
+                .contentType(MediaType.APPLICATION_JSON)
+                .accept(MediaType.APPLICATION_JSON)
+                .content(json);
+
+        mvc.perform(request).andExpect(MockMvcResultMatchers.status().isBadRequest())
+                .andExpect(MockMvcResultMatchers.jsonPath("errors", Matchers.hasSize(1)))
+                .andExpect(MockMvcResultMatchers.jsonPath("errors[0]").value(errorMessage));
     }
 
     private BookDTO createBookDto() {
