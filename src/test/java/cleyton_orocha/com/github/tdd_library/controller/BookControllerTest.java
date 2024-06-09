@@ -3,6 +3,7 @@ package cleyton_orocha.com.github.tdd_library.controller;
 import org.hamcrest.Matchers;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.BDDMockito;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -11,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
@@ -26,6 +28,7 @@ import cleyton_orocha.com.github.tdd_library.service.BookService;
 @WebMvcTest
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
+@ExtendWith(SpringExtension.class)
 public class BookControllerTest {
 
     static String BOOK_API = "/api/books";
@@ -37,27 +40,23 @@ public class BookControllerTest {
     MockMvc mvc;
 
     @Test
-    @DisplayName("")
+    @DisplayName("Deve criar um livro com sucesso")
     public void createBookTest() throws Exception {
         // Cenário
         BookDTO dto = createBookDto();
 
-        BookDTO savedBook = BookDTO.builder()
+        Book savedBook = Book.builder()
                 .id(1L)
                 .title("Titulo")
                 .author("Autor")
                 .isbn("12345678")
                 .build();
 
-        BDDMockito.given(bookService.save(Mockito.any(BookDTO.class))).willReturn(savedBook);
+        BDDMockito.given(bookService.save(Mockito.any(Book.class))).willReturn(savedBook);
 
         String json = new ObjectMapper().writeValueAsString(dto);
 
-        // Execução
-        MockHttpServletRequestBuilder request = getRequest(json);
-
-        // Validação
-        mvc.perform(request)
+        mvc.perform(getRequest(json))
                 .andExpect(MockMvcResultMatchers.status().isCreated())
                 // .andExpect(MockMvcResultMatchers.jsonPath("id").isNotEmpty())
                 .andExpect(MockMvcResultMatchers.jsonPath("id").value(1L))
@@ -85,10 +84,11 @@ public class BookControllerTest {
         String json = new ObjectMapper().writeValueAsString(bookDTO);
         String errorMessage = "Isbn já cadastrado.";
 
-        BDDMockito.given(bookService.save(Mockito.any(BookDTO.class)))
+        BDDMockito.given(bookService.save(Mockito.any(Book.class)))
                 .willThrow(new BusinessException(errorMessage));
 
-        mvc.perform(getRequest(json)).andExpect(MockMvcResultMatchers.status().isBadRequest())
+        mvc.perform(getRequest(json))
+                .andExpect(MockMvcResultMatchers.status().isBadRequest())
                 .andExpect(MockMvcResultMatchers.jsonPath("errors", Matchers.hasSize(1)))
                 .andExpect(MockMvcResultMatchers.jsonPath("errors[0]").value(errorMessage));
     }
